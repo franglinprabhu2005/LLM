@@ -8,14 +8,14 @@ from langchain.prompts import PromptTemplate
 import os
 import google.generativeai as genai
 from dotenv import load_dotenv
-from langchain_community.vectorstores import Chroma  # Updated import
+from langchain_community.vectorstores import FAISS  # Changed from Chroma to FAISS
 
 # Load environment variables
 load_dotenv()
 API_KEY = os.getenv("GOOGLE_API_KEY")
 genai.configure(api_key=API_KEY)
 
-# Global memory to store vector data
+# Global memory to store FAISS vector index
 vector_store_memory = None
 
 # Extract text from uploaded PDFs
@@ -39,13 +39,13 @@ def get_text_chunks(text):
     splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=1000)
     return splitter.split_text(text)
 
-# Create vector store from chunks (in-memory only)
+# Create vector store from chunks using FAISS
 def create_vector_store(text_chunks):
     if not text_chunks:
         st.error("No text chunks found, upload readable PDFs!")
         return None
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-    vector_store = Chroma.from_texts(text_chunks, embedding=embeddings)  # No persist_directory
+    vector_store = FAISS.from_texts(text_chunks, embedding=embeddings)
     return vector_store
 
 # Load QA chain using Gemini chat

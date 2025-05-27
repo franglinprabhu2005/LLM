@@ -8,13 +8,15 @@ from langchain.prompts import PromptTemplate
 import os
 import google.generativeai as genai
 from dotenv import load_dotenv
-from langchain.vectorstores import Chroma
-
+from langchain_community.vectorstores import Chroma  # Updated import
 
 # Load environment variables
 load_dotenv()
 API_KEY = os.getenv("GOOGLE_API_KEY")
 genai.configure(api_key=API_KEY)
+
+# Global memory to store vector data
+vector_store_memory = None
 
 # Extract text from uploaded PDFs
 def get_pdf_text(pdf_docs):
@@ -37,14 +39,13 @@ def get_text_chunks(text):
     splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=1000)
     return splitter.split_text(text)
 
-# Create vector store (Chroma) from chunks and save locally
+# Create vector store from chunks (in-memory only)
 def create_vector_store(text_chunks):
     if not text_chunks:
         st.error("No text chunks found, upload readable PDFs!")
         return None
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-    vector_store = Chroma.from_texts(text_chunks, embedding=embeddings, persist_directory="chroma_db")
-    vector_store.persist()
+    vector_store = Chroma.from_texts(text_chunks, embedding=embeddings)  # No persist_directory
     return vector_store
 
 # Load QA chain using Gemini chat
@@ -67,19 +68,22 @@ Answer:
     return chain
 
 # Query user input question and show answer
-def answer_question(question):
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-    vector_store = Chroma(persist_directory="chroma_db", embedding_function=embeddings)
+def answer_question(question, vector_store):
+    if not vector_store:
+        st.error("Vector store is not initialized. Upload and process PDFs first.")
+        return
     docs = vector_store.similarity_search(question)
     qa_chain = get_qa_chain()
     response = qa_chain.invoke({"input_documents": docs, "question": question})
     st.write("### Answer:")
     st.write(response["output_text"])
 
+# Streamlit app
 def main():
+    global vector_store_memory
     st.set_page_config(page_title="PDF Chat with Google Gemini Embeddings", layout="wide")
-    st.title("📄 Welcome to Techspark PDF chatbot")
-    
+    st.title("📄 Welcome to Techspark PDF Chatbot")
+
     with st.sidebar:
         st.header("Upload PDFs")
         pdf_docs = st.file_uploader(
@@ -94,12 +98,13 @@ def main():
                     st.error("No readable text found in PDFs. If scanned, consider OCR!")
                 else:
                     chunks = get_text_chunks(raw_text)
-                    create_vector_store(chunks)
-                    st.success("Vector store created successfully!")
+                    vector_store_memory = create_vector_store(chunks)
+                    if vector_store_memory:
+                        st.success("Vector store created successfully!")
 
     user_question = st.text_input("Ask a question about the PDFs:")
     if user_question:
-        answer_question(user_question)
+        answer_question(user_question, vector_store_memory)
 
 if __name__ == "__main__":
     main()

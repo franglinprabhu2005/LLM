@@ -6,4 +6,5 @@ faiss-cpu
 python-dotenv
 chromadb
 google.generativeai
+langchain-community
 

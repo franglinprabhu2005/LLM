@@ -60,7 +60,7 @@ Question:
 
 Answer:
 """
-    model = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0.2)
+    model = ChatGoogleGenerativeAI(model="gemini-bro", temperature=0.2)
     prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
     chain = load_qa_chain(llm=model, chain_type="stuff", prompt=prompt)
     return chain

@@ -8,3 +8,10 @@ chromadb
 google.generativeai
 langchain-community
 
+
+
+
+
+
+
+

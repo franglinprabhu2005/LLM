@@ -3,14 +3,12 @@ from PyPDF2 import PdfReader
 from PyPDF2.errors import PdfReadError
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
-#from langchain.vectorstores import FAISS
 from langchain.chains.question_answering import load_qa_chain
 from langchain.prompts import PromptTemplate
 import os
 import google.generativeai as genai
 from dotenv import load_dotenv
 from langchain.vectorstores import Chroma
-
 
 
 # Load environment variables
@@ -39,14 +37,14 @@ def get_text_chunks(text):
     splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=1000)
     return splitter.split_text(text)
 
-# Create vector store (FAISS) from chunks and save locally
+# Create vector store (Chroma) from chunks and save locally
 def create_vector_store(text_chunks):
     if not text_chunks:
         st.error("No text chunks found, upload readable PDFs!")
         return None
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-    vector_store = FAISS.from_texts(text_chunks, embedding=embeddings)
-    vector_store.save_local("faiss_index")
+    vector_store = Chroma.from_texts(text_chunks, embedding=embeddings, persist_directory="chroma_db")
+    vector_store.persist()
     return vector_store
 
 # Load QA chain using Gemini chat
@@ -64,7 +62,6 @@ Question:
 Answer:
 """
     model = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0.2)
-
     prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
     chain = load_qa_chain(llm=model, chain_type="stuff", prompt=prompt)
     return chain
@@ -72,7 +69,7 @@ Answer:
 # Query user input question and show answer
 def answer_question(question):
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-    vector_store = FAISS.load_local("faiss_index", embeddings, allow_dangerous_deserialization=True)
+    vector_store = Chroma(persist_directory="chroma_db", embedding_function=embeddings)
     docs = vector_store.similarity_search(question)
     qa_chain = get_qa_chain()
     response = qa_chain.invoke({"input_documents": docs, "question": question})
@@ -81,7 +78,7 @@ def answer_question(question):
 
 def main():
     st.set_page_config(page_title="PDF Chat with Google Gemini Embeddings", layout="wide")
-    st.title("📄 Welcome to Techspark PDF chatbat")
+    st.title("📄 Welcome to Techspark PDF chatbot")
     
     with st.sidebar:
         st.header("Upload PDFs")

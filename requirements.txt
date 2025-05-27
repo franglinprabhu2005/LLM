@@ -5,4 +5,5 @@ langchain-google-genai
 faiss-cpu
 python-dotenv
 chromadb
+google.generativeai
 

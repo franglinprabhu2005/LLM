@@ -8,15 +8,12 @@ from langchain.prompts import PromptTemplate
 import os
 import google.generativeai as genai
 from dotenv import load_dotenv
-from langchain_community.vectorstores import FAISS  # Changed from Chroma to FAISS
+from langchain_community.vectorstores import FAISS  # Using FAISS for local memory
 
 # Load environment variables
 load_dotenv()
 API_KEY = os.getenv("GOOGLE_API_KEY")
 genai.configure(api_key=API_KEY)
-
-# Global memory to store FAISS vector index
-vector_store_memory = None
 
 # Extract text from uploaded PDFs
 def get_pdf_text(pdf_docs):
@@ -80,9 +77,12 @@ def answer_question(question, vector_store):
 
 # Streamlit app
 def main():
-    global vector_store_memory
     st.set_page_config(page_title="PDF Chat with Google Gemini Embeddings", layout="wide")
     st.title("📄 Welcome to Techspark PDF Chatbot")
+
+    # Initialize vector store in session state
+    if "vector_store" not in st.session_state:
+        st.session_state.vector_store = None
 
     with st.sidebar:
         st.header("Upload PDFs")
@@ -98,13 +98,14 @@ def main():
                     st.error("No readable text found in PDFs. If scanned, consider OCR!")
                 else:
                     chunks = get_text_chunks(raw_text)
-                    vector_store_memory = create_vector_store(chunks)
-                    if vector_store_memory:
+                    vector_store = create_vector_store(chunks)
+                    if vector_store:
+                        st.session_state.vector_store = vector_store
                         st.success("Vector store created successfully!")
 
     user_question = st.text_input("Ask a question about the PDFs:")
     if user_question:
-        answer_question(user_question, vector_store_memory)
+        answer_question(user_question, st.session_state.vector_store)
 
 if __name__ == "__main__":
     main()
